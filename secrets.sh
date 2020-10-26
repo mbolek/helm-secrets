@@ -300,13 +300,17 @@ decrypt_helper() {
     [[ -e "$yml" ]] || { echo "File does not exist: $yml"; exit 1; }
     if [[ $(grep -C10000 'sops:' "$yml" | grep -c 'version:') -eq 0 ]]
     then
-	echo "Not encrypted: $yml"
+  if [ "$cmd" != "template"] ; then
+  	echo "Not encrypted: $yml"
+  fi
 	__ymldec="$yml"
     else
 	__ymldec=$(sed -e "s/\\.yaml$/${DEC_SUFFIX}/" <<<"$yml")
 	if [[ -e $__ymldec && $__ymldec -nt $yml ]]
 	then
+    if [ "$cmd" != "template"] ; then
 	    echo "$__ymldec is newer than $yml"
+    fi
 	else
 	    sops --decrypt --input-type yaml --output-type yaml "$yml" > "$__ymldec" || { rm "$__ymldec"; exit 1; }
 	    __dec=1
@@ -460,7 +464,9 @@ EOF
     ${HELM_BIN} ${TILLER_HOST:+--host "$TILLER_HOST" }"$cmd" $subcmd "$@" "${cmdopts[@]}"
     helm_exit_code=$?
     # cleanup on-the-fly decrypted files
-    [[ ${#decfiles[@]} -gt 0 ]] && rm -v "${decfiles[@]}"
+    local rmflags=(-v)
+    if [ "$cmd" == "template" ]; then rmflags=(); fi
+    [[ ${#decfiles[@]} -gt 0 ]] && rm "${rmflags{@]}" "${decfiles[@]}"
 }
 
 helm_command() {
